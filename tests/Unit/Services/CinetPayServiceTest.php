@@ -286,7 +286,7 @@ class CinetPayServiceTest extends TestCase
 
         $payment->refresh();
         $this->assertEquals(Payment::STATUS_FAILED, $payment->status);
-        $this->assertStringContainsString('Card declined', $payment->error_message);
+        $this->assertStringContainsString('Card declined', $payment->failure_reason);
     }
 
     /** @test */

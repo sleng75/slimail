@@ -29,7 +29,7 @@ class ApiTransactionalTest extends TestCase
         $this->apiKey = ApiKey::factory()->create([
             'tenant_id' => $this->tenant->id,
             'name' => 'Test API Key',
-            'scopes' => ['send:transactional'],
+            'permissions' => ['send', 'read'],
         ]);
     }
 
@@ -298,7 +298,7 @@ class ApiTransactionalTest extends TestCase
     {
         $limitedKey = ApiKey::factory()->create([
             'tenant_id' => $this->tenant->id,
-            'scopes' => ['read:contacts'], // No send scope
+            'permissions' => ['read'], // No send permission
         ]);
 
         $response = $this->withHeaders([

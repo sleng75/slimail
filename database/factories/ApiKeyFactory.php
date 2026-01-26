@@ -17,7 +17,7 @@ class ApiKeyFactory extends Factory
             'tenant_id' => Tenant::factory(),
             'name' => fake()->words(2, true),
             'key' => 'sk_' . Str::random(32),
-            'scopes' => ['send:transactional', 'read:contacts'],
+            'permissions' => ['send', 'read'],
             'is_active' => true,
             'requests_count' => 0,
             'last_used_at' => null,
