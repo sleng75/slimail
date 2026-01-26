@@ -150,6 +150,14 @@ class ContactList extends Model
     }
 
     /**
+     * Alias for updateCounts().
+     */
+    public function updateContactCount(): void
+    {
+        $this->updateCounts();
+    }
+
+    /**
      * Get contacts matching dynamic segment criteria.
      */
     public function getSegmentContacts()

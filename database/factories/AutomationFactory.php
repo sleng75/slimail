@@ -19,9 +19,9 @@ class AutomationFactory extends Factory
             'trigger_type' => Automation::TRIGGER_LIST_SUBSCRIPTION,
             'trigger_config' => [],
             'status' => Automation::STATUS_DRAFT,
-            'allow_re_entry' => false,
+            'allow_reentry' => false,
             'total_enrolled' => 0,
-            'active' => 0,
+            'currently_active' => 0,
             'completed' => 0,
             'exited' => 0,
         ];

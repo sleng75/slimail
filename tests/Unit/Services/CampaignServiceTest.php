@@ -34,7 +34,13 @@ class CampaignServiceTest extends TestCase
         $this->user = User::factory()->create(['tenant_id' => $this->tenant->id]);
 
         $this->mockSesService = Mockery::mock(SESService::class);
-        $this->mockEmailService = Mockery::mock(EmailService::class);
+        $this->mockEmailService = Mockery::mock(EmailService::class)->makePartial();
+
+        // Default mock for generateUnsubscribeLink used in many tests
+        // Using byDefault() so specific tests can override with their own expectations
+        $this->mockEmailService->shouldReceive('generateUnsubscribeLink')
+            ->byDefault()
+            ->andReturn('https://example.com/unsubscribe/test-token');
 
         $this->campaignService = new CampaignService(
             $this->mockEmailService,

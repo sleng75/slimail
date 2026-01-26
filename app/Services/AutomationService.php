@@ -88,9 +88,12 @@ class AutomationService
                 'step_type' => $step->type,
             ]);
 
-            // Move to next step
-            $nextStep = $result['next_step'] ?? $step->getNextStep($result['branch'] ?? null);
-            $enrollment->moveToStep($nextStep);
+            // Move to next step (unless enrollment was already exited)
+            $enrollment->refresh();
+            if ($enrollment->status !== AutomationEnrollment::STATUS_EXITED) {
+                $nextStep = $result['next_step'] ?? $step->getNextStep($result['branch'] ?? null);
+                $enrollment->moveToStep($nextStep);
+            }
         } else {
             // Step failed
             $step->incrementStat('failed_count');
