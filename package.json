@@ -1,0 +1,35 @@
+{
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build": "vite build",
+        "dev": "vite",
+        "test:e2e": "playwright test",
+        "test:e2e:ui": "playwright test --ui",
+        "test:e2e:headed": "playwright test --headed",
+        "test:e2e:report": "playwright show-report tests/e2e/reports"
+    },
+    "devDependencies": {
+        "@playwright/test": "^1.40.0",
+        "@tailwindcss/forms": "^0.5.11",
+        "autoprefixer": "^10.4.23",
+        "axios": "^1.7.4",
+        "concurrently": "^9.0.1",
+        "laravel-vite-plugin": "^1.2.0",
+        "postcss": "^8.5.6",
+        "tailwindcss": "^3.4.19",
+        "vite": "^6.0.11"
+    },
+    "dependencies": {
+        "@inertiajs/vue3": "^2.3.11",
+        "@vitejs/plugin-vue": "^6.0.3",
+        "chart.js": "^4.5.1",
+        "grapesjs": "^0.21.13",
+        "grapesjs-mjml": "^1.0.5",
+        "grapesjs-preset-newsletter": "^1.0.2",
+        "lodash": "^4.17.23",
+        "mjml": "^4.15.3",
+        "vue": "^3.5.27",
+        "vue-chartjs": "^5.3.3"
+    }
+}

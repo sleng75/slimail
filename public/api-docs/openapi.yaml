@@ -1,0 +1,876 @@
+openapi: 3.0.3
+info:
+  title: SliMail API
+  description: |
+    API transactionnelle pour l'envoi d'emails et la gestion des automatisations.
+
+    ## Authentification
+
+    Toutes les requêtes API doivent inclure une clé API dans le header `Authorization`:
+
+    ```
+    Authorization: Bearer YOUR_API_KEY
+    ```
+
+    Les clés API peuvent être générées depuis votre tableau de bord SliMail.
+
+    ## Rate Limiting
+
+    - 100 requêtes par minute pour les endpoints de lecture
+    - 50 requêtes par minute pour les endpoints d'envoi
+
+    ## Codes d'erreur
+
+    | Code | Description |
+    |------|-------------|
+    | 400 | Requête invalide |
+    | 401 | Non authentifié |
+    | 403 | Non autorisé |
+    | 404 | Ressource non trouvée |
+    | 422 | Erreur de validation |
+    | 429 | Rate limit dépassé |
+    | 500 | Erreur serveur |
+
+  version: 1.0.0
+  contact:
+    name: Support SliMail
+    email: support@slimail.com
+  license:
+    name: Propriétaire
+    url: https://slimail.com/terms
+
+servers:
+  - url: https://api.slimail.com/v1
+    description: Production
+  - url: https://sandbox.slimail.com/v1
+    description: Sandbox (test)
+
+tags:
+  - name: Emails
+    description: Envoi et suivi des emails transactionnels
+  - name: Automations
+    description: Gestion et déclenchement des automatisations
+  - name: Webhooks
+    description: Réception des événements SNS
+
+paths:
+  /send:
+    post:
+      tags:
+        - Emails
+      summary: Envoyer un email
+      description: |
+        Envoie un email transactionnel à un ou plusieurs destinataires.
+
+        L'email peut être envoyé avec du contenu HTML, texte brut, ou en utilisant un template.
+      operationId: sendEmail
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendEmailRequest'
+            examples:
+              simple:
+                summary: Email simple
+                value:
+                  to: "destinataire@example.com"
+                  subject: "Confirmation de commande"
+                  html: "<h1>Merci pour votre commande!</h1><p>Votre commande #123 a été confirmée.</p>"
+              with_template:
+                summary: Avec template
+                value:
+                  to:
+                    - email: "client@example.com"
+                      name: "Jean Dupont"
+                  subject: "Bienvenue {{first_name}}!"
+                  template_id: "welcome-email"
+                  variables:
+                    first_name: "Jean"
+                    company: "Acme Inc"
+              with_attachments:
+                summary: Avec pièces jointes
+                value:
+                  to: "client@example.com"
+                  subject: "Votre facture"
+                  html: "<p>Veuillez trouver votre facture ci-jointe.</p>"
+                  attachments:
+                    - filename: "facture.pdf"
+                      content: "base64encodedcontent..."
+                      content_type: "application/pdf"
+      responses:
+        '200':
+          description: Email envoyé avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendEmailResponse'
+              example:
+                success: true
+                message_id: "msg_01HXYZ123456789"
+                message: "Email envoyé avec succès"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /emails/{id}:
+    get:
+      tags:
+        - Emails
+      summary: Statut d'un email
+      description: Récupère le statut et les informations d'un email envoyé.
+      operationId: getEmailStatus
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID du message (message_id retourné lors de l'envoi)
+          schema:
+            type: string
+            example: "msg_01HXYZ123456789"
+      responses:
+        '200':
+          description: Statut de l'email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailStatus'
+              example:
+                id: "msg_01HXYZ123456789"
+                status: "delivered"
+                to: "destinataire@example.com"
+                subject: "Confirmation de commande"
+                sent_at: "2024-01-15T10:30:00Z"
+                delivered_at: "2024-01-15T10:30:05Z"
+                opened_at: "2024-01-15T11:45:00Z"
+                clicked_at: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /emails/{id}/events:
+    get:
+      tags:
+        - Emails
+      summary: Événements d'un email
+      description: Récupère l'historique des événements d'un email (envoi, livraison, ouverture, clics, etc.)
+      operationId: getEmailEvents
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID du message
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Liste des événements
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/EmailEvent'
+              example:
+                events:
+                  - type: "sent"
+                    timestamp: "2024-01-15T10:30:00Z"
+                    details: null
+                  - type: "delivered"
+                    timestamp: "2024-01-15T10:30:05Z"
+                    details: null
+                  - type: "opened"
+                    timestamp: "2024-01-15T11:45:00Z"
+                    details:
+                      user_agent: "Mozilla/5.0..."
+                      ip: "192.168.1.1"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /automations:
+    get:
+      tags:
+        - Automations
+      summary: Liste des automatisations
+      description: Récupère la liste des automatisations actives du tenant.
+      operationId: listAutomations
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filtrer par statut
+          schema:
+            type: string
+            enum: [draft, active, paused]
+        - name: page
+          in: query
+          description: Numéro de page
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          description: Nombre d'éléments par page
+          schema:
+            type: integer
+            default: 15
+            maximum: 100
+      responses:
+        '200':
+          description: Liste des automatisations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AutomationSummary'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /automations/{automation}:
+    get:
+      tags:
+        - Automations
+      summary: Détails d'une automatisation
+      description: Récupère les détails complets d'une automatisation.
+      operationId: getAutomation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: automation
+          in: path
+          required: true
+          description: ID de l'automatisation
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Détails de l'automatisation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Automation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /automations/{automation}/trigger:
+    post:
+      tags:
+        - Automations
+      summary: Déclencher une automatisation
+      description: |
+        Déclenche manuellement une automatisation pour un ou plusieurs contacts.
+
+        Cette méthode est utile pour les automatisations avec trigger "api_call".
+      operationId: triggerAutomation
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: automation
+          in: path
+          required: true
+          description: ID de l'automatisation
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: Email du contact à inscrire
+                data:
+                  type: object
+                  description: Données personnalisées pour l'automatisation
+                  additionalProperties: true
+            example:
+              email: "contact@example.com"
+              data:
+                order_id: "12345"
+                product_name: "Widget Pro"
+      responses:
+        '200':
+          description: Automatisation déclenchée
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  enrollment_id:
+                    type: integer
+              example:
+                success: true
+                message: "Contact inscrit dans l'automatisation"
+                enrollment_id: 456
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /automations/{automation}/enroll:
+    post:
+      tags:
+        - Automations
+      summary: Inscrire un contact
+      description: |
+        Inscrit un contact dans une automatisation.
+
+        Si le contact n'existe pas, il sera créé automatiquement.
+      operationId: enrollContact
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: automation
+          in: path
+          required: true
+          description: ID de l'automatisation
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+                custom_fields:
+                  type: object
+                  additionalProperties: true
+            example:
+              email: "nouveau@example.com"
+              first_name: "Marie"
+              last_name: "Martin"
+              custom_fields:
+                company: "Tech Corp"
+                plan: "premium"
+      responses:
+        '200':
+          description: Contact inscrit
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  contact_id:
+                    type: integer
+                  enrollment_id:
+                    type: integer
+              example:
+                success: true
+                message: "Contact inscrit dans l'automatisation"
+                contact_id: 789
+                enrollment_id: 456
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /automations/{automation}/enrollments/{email}:
+    get:
+      tags:
+        - Automations
+      summary: Statut d'inscription
+      description: Récupère le statut d'inscription d'un contact dans une automatisation.
+      operationId: getEnrollmentStatus
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: automation
+          in: path
+          required: true
+          description: ID de l'automatisation
+          schema:
+            type: integer
+        - name: email
+          in: path
+          required: true
+          description: Email du contact
+          schema:
+            type: string
+            format: email
+      responses:
+        '200':
+          description: Statut de l'inscription
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnrollmentStatus'
+              example:
+                enrolled: true
+                status: "active"
+                current_step: 3
+                enrolled_at: "2024-01-10T09:00:00Z"
+                completed_steps:
+                  - step: 1
+                    completed_at: "2024-01-10T09:00:00Z"
+                  - step: 2
+                    completed_at: "2024-01-11T09:00:00Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /webhooks/sns:
+    post:
+      tags:
+        - Webhooks
+      summary: Webhook SNS
+      description: |
+        Endpoint pour recevoir les notifications Amazon SNS.
+
+        **Note**: Cet endpoint est utilisé en interne par Amazon SES pour notifier les événements email.
+        Il ne nécessite pas d'authentification API mais valide la signature SNS.
+      operationId: handleSnsWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Webhook traité
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+              example:
+                status: "processed"
+        '400':
+          description: Signature invalide
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Clé API à inclure dans le header Authorization
+
+  schemas:
+    SendEmailRequest:
+      type: object
+      required:
+        - to
+        - subject
+      properties:
+        to:
+          oneOf:
+            - type: string
+              format: email
+            - type: array
+              items:
+                oneOf:
+                  - type: string
+                    format: email
+                  - type: object
+                    properties:
+                      email:
+                        type: string
+                        format: email
+                      name:
+                        type: string
+          description: Destinataire(s) de l'email
+        cc:
+          oneOf:
+            - type: string
+              format: email
+            - type: array
+              items:
+                type: string
+                format: email
+          description: Destinataires en copie
+        bcc:
+          oneOf:
+            - type: string
+              format: email
+            - type: array
+              items:
+                type: string
+                format: email
+          description: Destinataires en copie cachée
+        from:
+          type: object
+          properties:
+            email:
+              type: string
+              format: email
+            name:
+              type: string
+          description: Expéditeur (optionnel, utilise l'expéditeur par défaut)
+        reply_to:
+          type: string
+          format: email
+          description: Adresse de réponse
+        subject:
+          type: string
+          maxLength: 998
+          description: Objet de l'email
+        html:
+          type: string
+          description: Contenu HTML de l'email
+        text:
+          type: string
+          description: Contenu texte de l'email
+        template_id:
+          type: string
+          description: ID du template à utiliser
+        variables:
+          type: object
+          additionalProperties: true
+          description: Variables pour le template
+        attachments:
+          type: array
+          items:
+            type: object
+            required:
+              - filename
+              - content
+            properties:
+              filename:
+                type: string
+              content:
+                type: string
+                description: Contenu encodé en base64
+              content_type:
+                type: string
+                default: application/octet-stream
+          description: Pièces jointes (max 10MB total)
+        tags:
+          type: array
+          items:
+            type: string
+          description: Tags pour le suivi
+        metadata:
+          type: object
+          additionalProperties: true
+          description: Métadonnées personnalisées
+
+    SendEmailResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message_id:
+          type: string
+          description: ID unique du message
+        message:
+          type: string
+
+    EmailStatus:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [queued, sent, delivered, opened, clicked, bounced, complained, failed]
+        to:
+          type: string
+        subject:
+          type: string
+        sent_at:
+          type: string
+          format: date-time
+        delivered_at:
+          type: string
+          format: date-time
+          nullable: true
+        opened_at:
+          type: string
+          format: date-time
+          nullable: true
+        clicked_at:
+          type: string
+          format: date-time
+          nullable: true
+        bounced_at:
+          type: string
+          format: date-time
+          nullable: true
+        bounce_type:
+          type: string
+          nullable: true
+        complained_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    EmailEvent:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [sent, delivered, opened, clicked, bounced, complained]
+        timestamp:
+          type: string
+          format: date-time
+        details:
+          type: object
+          nullable: true
+          additionalProperties: true
+
+    AutomationSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        status:
+          type: string
+          enum: [draft, active, paused]
+        trigger_type:
+          type: string
+        total_enrolled:
+          type: integer
+        active_enrolled:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    Automation:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [draft, active, paused]
+        trigger_type:
+          type: string
+          enum: [list_subscription, tag_added, tag_removed, email_opened, link_clicked, date_field, api_call, manual]
+        trigger_config:
+          type: object
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/AutomationStep'
+        stats:
+          type: object
+          properties:
+            total_enrolled:
+              type: integer
+            active:
+              type: integer
+            completed:
+              type: integer
+            exited:
+              type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AutomationStep:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [send_email, wait, condition, add_tag, remove_tag, add_to_list, remove_from_list, update_field, webhook, goal, exit]
+        name:
+          type: string
+        config:
+          type: object
+        order:
+          type: integer
+
+    EnrollmentStatus:
+      type: object
+      properties:
+        enrolled:
+          type: boolean
+        status:
+          type: string
+          enum: [active, completed, exited, paused]
+          nullable: true
+        current_step:
+          type: integer
+          nullable: true
+        enrolled_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_steps:
+          type: array
+          items:
+            type: object
+            properties:
+              step:
+                type: integer
+              completed_at:
+                type: string
+                format: date-time
+
+    PaginationMeta:
+      type: object
+      properties:
+        current_page:
+          type: integer
+        last_page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          nullable: true
+
+    ValidationError:
+      type: object
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+  responses:
+    BadRequest:
+      description: Requête invalide
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "bad_request"
+            message: "La requête est invalide"
+
+    Unauthorized:
+      description: Non authentifié
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "unauthorized"
+            message: "Clé API invalide ou manquante"
+
+    NotFound:
+      description: Ressource non trouvée
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "not_found"
+            message: "La ressource demandée n'existe pas"
+
+    ValidationError:
+      description: Erreur de validation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+          example:
+            message: "Les données fournies sont invalides"
+            errors:
+              to:
+                - "Le champ to est obligatoire"
+              subject:
+                - "Le champ subject est obligatoire"
+
+    RateLimited:
+      description: Rate limit dépassé
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "rate_limited"
+            message: "Trop de requêtes. Veuillez réessayer dans 60 secondes."
+      headers:
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+          description: Nombre de requêtes autorisées
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+          description: Nombre de requêtes restantes
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+          description: Timestamp de réinitialisation
