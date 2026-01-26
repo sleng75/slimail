@@ -84,6 +84,31 @@ class CampaignController extends Controller
     }
 
     /**
+     * Update campaign (general update).
+     */
+    public function update(Request $request, Campaign $campaign): RedirectResponse
+    {
+        if (!$campaign->isEditable()) {
+            abort(403, 'Cette campagne ne peut plus être modifiée.');
+        }
+
+        $validated = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'subject' => 'sometimes|string|max:255',
+            'preview_text' => 'nullable|string|max:255',
+            'from_name' => 'sometimes|string|max:255',
+            'from_email' => 'sometimes|email|max:255',
+            'reply_to' => 'nullable|email|max:255',
+            'html_content' => 'nullable|string',
+            'list_ids' => 'nullable|array',
+        ]);
+
+        $campaign->update($validated);
+
+        return redirect()->back()->with('success', 'Campagne mise à jour.');
+    }
+
+    /**
      * Store a newly created campaign.
      */
     public function store(Request $request): RedirectResponse

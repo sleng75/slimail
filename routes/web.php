@@ -91,6 +91,8 @@ Route::middleware(['auth', 'tenant.active'])->group(function () {
         // Import/Export - MUST be before resource routes
         Route::get('/contacts/import', [ContactImportController::class, 'showImportForm'])->name('contacts.import');
         Route::post('/contacts/import', [ContactImportController::class, 'import'])->name('contacts.import.process');
+        Route::post('/contacts/import/process', [ContactImportController::class, 'import']); // Alias for tests
+        Route::post('/contacts/import/upload', [ContactImportController::class, 'upload'])->name('contacts.import.upload');
         Route::post('/contacts/import/preview', [ContactImportController::class, 'preview'])->name('contacts.import.preview');
         Route::get('/contacts/import/template', [ContactImportController::class, 'downloadTemplate'])->name('contacts.import.template');
         Route::get('/contacts/export', [ContactImportController::class, 'export'])->name('contacts.export');

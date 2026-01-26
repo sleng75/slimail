@@ -8,14 +8,14 @@ use App\Models\Contact;
 use App\Models\EmailEvent;
 use App\Models\SentEmail;
 use App\Models\Tenant;
-use App\Services\Amazon\SESService;
+use App\Contracts\EmailServiceInterface;
 use Illuminate\Support\Facades\Log;
 
 class EmailService
 {
-    protected SESService $sesService;
+    protected EmailServiceInterface $sesService;
 
-    public function __construct(SESService $sesService)
+    public function __construct(EmailServiceInterface $sesService)
     {
         $this->sesService = $sesService;
     }

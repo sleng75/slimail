@@ -191,6 +191,61 @@ class ContactImportController extends Controller
     }
 
     /**
+     * Upload CSV file and return preview data.
+     */
+    public function upload(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:csv,txt,xlsx,xls|max:10240',
+        ]);
+
+        $file = $request->file('file');
+        $hasHeader = $request->boolean('has_header', true);
+
+        // Store the file temporarily
+        $filePath = $file->store('imports', 'local');
+
+        $handle = fopen($file->getPathname(), 'r');
+        $headers = [];
+        $preview = [];
+        $totalRows = 0;
+
+        while (($row = fgetcsv($handle)) !== false) {
+            $totalRows++;
+
+            if ($hasHeader && $totalRows === 1) {
+                $headers = $row;
+                continue;
+            }
+
+            if (count($preview) < 5) {
+                $preview[] = $row;
+            }
+        }
+
+        fclose($handle);
+
+        // If no headers, generate column numbers
+        if (empty($headers) && !empty($preview)) {
+            for ($i = 0; $i < count($preview[0]); $i++) {
+                $headers[] = "Column " . ($i + 1);
+            }
+        }
+
+        // Adjust total rows if header was counted
+        if ($hasHeader) {
+            $totalRows--;
+        }
+
+        return response()->json([
+            'headers' => $headers,
+            'preview' => $preview,
+            'total_rows' => $totalRows,
+            'file_path' => $filePath,
+        ]);
+    }
+
+    /**
      * Preview CSV file and get column headers.
      */
     public function preview(Request $request)
