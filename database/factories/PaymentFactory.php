@@ -27,7 +27,7 @@ class PaymentFactory extends Factory
             'cinetpay_payment_token' => null,
             'cinetpay_payment_url' => null,
             'cinetpay_transaction_id' => null,
-            'error_message' => null,
+            'failure_reason' => null,
             'initiated_at' => now(),
             'completed_at' => null,
             'expires_at' => now()->addHours(24),
@@ -61,7 +61,7 @@ class PaymentFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'status' => Payment::STATUS_FAILED,
-            'error_message' => 'Payment failed',
+            'failure_reason' => 'Payment failed',
         ]);
     }
 

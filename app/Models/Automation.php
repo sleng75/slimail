@@ -339,7 +339,11 @@ class Automation extends Model
     public function decrementStat(string $stat, int $amount = 1): void
     {
         if (in_array($stat, ['currently_active'])) {
-            $this->decrement($stat, $amount);
+            // Prevent negative values (MySQL UNSIGNED constraint)
+            $this->refresh();
+            if ($this->$stat >= $amount) {
+                $this->decrement($stat, $amount);
+            }
         }
     }
 
