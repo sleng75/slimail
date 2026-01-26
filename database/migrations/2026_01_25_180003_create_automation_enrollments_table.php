@@ -43,7 +43,7 @@ return new class extends Migration
             $table->index('contact_id');
 
             // Unique constraint to prevent duplicate active enrollments (unless reentry is allowed)
-            $table->unique(['automation_id', 'contact_id', 'enrolled_at']);
+            $table->unique(['automation_id', 'contact_id', 'enrolled_at'], 'enrollments_unique');
         });
     }
 
