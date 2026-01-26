@@ -6,15 +6,15 @@ use App\Models\Campaign;
 use App\Models\CampaignVariant;
 use App\Models\Contact;
 use App\Models\SentEmail;
-use App\Services\Amazon\SESService;
+use App\Contracts\EmailServiceInterface;
 use Illuminate\Support\Facades\Log;
 
 class CampaignService
 {
     protected EmailService $emailService;
-    protected SESService $sesService;
+    protected EmailServiceInterface $sesService;
 
-    public function __construct(EmailService $emailService, SESService $sesService)
+    public function __construct(EmailService $emailService, EmailServiceInterface $sesService)
     {
         $this->emailService = $emailService;
         $this->sesService = $sesService;
